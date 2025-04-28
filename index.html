@@ -1,0 +1,261 @@
+<!DOCTYPE html>  
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal Match Game</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Knewave&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+      body {
+        font-family: Arial, sans-serif;
+        background: #f0f8ff;
+        background-image: url('./assets/BG.png');
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+      h1 {
+        margin-bottom: 10px;
+        font-family: "Knewave", system-ui;
+        letter-spacing: 5px;
+        color: #FFF;
+      }
+      /* Timer text styling */
+      #timer {
+        font-size: 20px;
+        color: white;
+        margin-bottom: 10px;
+      }
+      /* Container to position messages over the game board */
+      .game-container {
+        position: relative;
+      }
+      .game-board {
+        display: grid;
+        grid-template-columns: repeat(4, 100px);
+        grid-template-rows: repeat(4, 100px);
+        gap: 10px;
+      }
+      .card {
+        background: #8ecae6;
+        border-radius: 10px;
+        cursor: pointer;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.5s;
+      }
+      .card.flip {
+        transform: rotateY(180deg);
+      }
+      .card .front,
+      .card .back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        border-radius: 8px;
+      }
+      .card .front {
+        background: #8ecae6;
+        background-image: url('./assets/Card-BG.png');
+        background-attachment: fixed;
+        background-size: 25% 50%;
+      }
+      .card .back {
+        background: #ffb703;
+        transform: rotateY(180deg);
+      }
+      button {
+        margin-top: 20px;
+        padding: 10px 10px;
+        border-radius: 100px;
+        border: 1px solid #FFF;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(28px);
+        font-size: 18px;
+        color: white;
+      }
+      .win-message,
+      .game-over-message,
+      .no-match-message {
+        padding: 10px 10px;
+        border-radius: 100px;
+        border: 1px solid #FFF;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(28px);
+        font-size: 18px;
+        color: white;
+        display: none;
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+      }
+      /* Sound Icon styling - positioned in bottom right */
+      #soundToggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Animal Match Game</h1>
+    <!-- Timer Display -->
+    <div id="timer">Time: 60</div>
+    <div class="game-container">
+      <div class="game-board" id="gameBoard"></div>
+      <div class="win-message" id="winMessage">🎉 You Win! 🎉</div>
+      <div class="game-over-message" id="gameOverMessage">Time's Up! Game Over</div>
+      <div class="no-match-message" id="noMatchMessage">No match</div>
+    </div>
+    <button onclick="resetGame()">Reset Game</button>
+    
+    <!-- Audio element with autoplay for background music -->
+    <audio id="bgMusic" src="./assets/music.mp3" autoplay loop></audio>
+    
+    <!-- Sound icon for toggling music -->
+    <img id="soundToggle" src="./assets/sound_on.png" alt="Toggle Sound">
+
+    <script>
+      const symbols = ['🐶', '🐱', '🐼', '🦊', '🐵', '🐸', '🐰', '🦄'];
+      let cards = [];
+      let flippedCards = [];
+      let matchedCount = 0;
+      
+      // Timer variables
+      const timeLimit = 60; // seconds
+      let timeRemaining = timeLimit;
+      let timerInterval = null;
+      let gameEnded = false;
+      
+      // Music variables
+      const bgMusic = document.getElementById('bgMusic');
+      const soundToggle = document.getElementById('soundToggle');
+      // Assume music is playing initially since autoplay is enabled
+      let musicPlaying = true;
+      
+      // Toggle music when the sound icon is clicked
+      soundToggle.addEventListener('click', toggleMusic);
+      
+      function toggleMusic() {
+        if (musicPlaying) {
+          bgMusic.pause();
+          musicPlaying = false;
+          // Update icon to indicate sound is off
+          soundToggle.src = "./assets/sound_off.png";
+        } else {
+          bgMusic.play().catch(error => console.log("Music playback failed:", error));
+          musicPlaying = true;
+          soundToggle.src = "./assets/sound_on.png";
+        }
+      }
+      
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+      
+      // Timer functions
+      function resetTimer() {
+        clearInterval(timerInterval);
+        timeRemaining = timeLimit;
+        document.getElementById('timer').innerText = 'Time: ' + timeRemaining;
+        gameEnded = false;
+      }
+      
+      function startTimer() {
+        timerInterval = setInterval(() => {
+          timeRemaining--;
+          document.getElementById('timer').innerText = 'Time: ' + timeRemaining;
+          if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            gameEnded = true;
+            document.getElementById('gameOverMessage').style.display = 'block';
+          }
+        }, 1000);
+      }
+      
+      function createBoard() {
+        const board = document.getElementById('gameBoard');
+        board.innerHTML = '';
+        matchedCount = 0;
+        flippedCards = [];
+        // Reset game messages
+        document.getElementById('winMessage').style.display = 'none';
+        document.getElementById('gameOverMessage').style.display = 'none';
+        document.getElementById('noMatchMessage').style.display = 'none';
+        // Reset timer
+        resetTimer();
+        startTimer();
+      
+        const doubledSymbols = shuffle([...symbols, ...symbols]);
+        cards = doubledSymbols.map(symbol => {
+          const card = document.createElement('div');
+          card.classList.add('card');
+          card.dataset.symbol = symbol;
+          card.innerHTML = `
+            <div class="front"></div>
+            <div class="back">${symbol}</div>
+          `;
+          card.addEventListener('click', () => flipCard(card));
+          board.appendChild(card);
+          return card;
+        });
+      }
+      
+      function flipCard(card) {
+        if (gameEnded) return;
+        if (card.classList.contains('flip') || flippedCards.length === 2) return;
+        card.classList.add('flip');
+        flippedCards.push(card);
+      
+        if (flippedCards.length === 2) {
+          if (flippedCards[0].dataset.symbol === flippedCards[1].dataset.symbol) {
+            // Cards match
+            flippedCards = [];
+            matchedCount += 2;
+            // Check for win condition
+            if (matchedCount === cards.length) {
+              clearInterval(timerInterval);
+              document.getElementById('winMessage').style.display = 'block';
+            }
+          } else {
+            // Cards do not match: show "No match" message as a popup
+            document.getElementById('noMatchMessage').style.display = 'block';
+            setTimeout(() => {
+              document.getElementById('noMatchMessage').style.display = 'none';
+              flippedCards.forEach(c => c.classList.remove('flip'));
+              flippedCards = [];
+            }, 1000);
+          }
+        }
+      }
+      
+      function resetGame() {
+        createBoard();
+      }
+      
+      // Initialize the board when the page loads
+      createBoard();
+    </script>
+  </body>
+</html>
